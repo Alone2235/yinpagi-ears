@@ -15,6 +15,7 @@ jobs:
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v3
         with:
+          gradle-version: 8.9
           arguments: assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
