@@ -1,13 +1,13 @@
 package dev.yinpagi.ears
 
 import android.bluetooth.BluetoothDevice
-import de.robv.android.xposed.IXposedMod
+import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers.findClass
 
-class XposedEntry : IXposedMod {
+class XposedEntry : IXposedHookLoadPackage {
     companion object {
         const val MATCH_NAME_PREFIX = "YINPAGE"
         const val XIAOMI_VENDOR_ID = 0x2717
@@ -67,8 +67,6 @@ class XposedEntry : IXposedMod {
             } catch (_: Throwable) { }
         }
     }
-
-    override fun initZygote(startupParam: IXposedMod.StartupParam) {}
 }
 
 object ByteUtils {
