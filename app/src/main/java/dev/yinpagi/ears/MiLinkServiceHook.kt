@@ -3,10 +3,12 @@ package dev.yinpagi.ears
 import android.bluetooth.BluetoothDevice
 
 /**
- * MiLink (com.milink.service) hook: makes the system treat the YINPAGE/Jieli earbud
- * as a Mi-brand headset and routes the ANC buttons to the real RCSP channel.
+ * MiLink hook: treat the YINPAGE/Jieli earbud as a Mi headset and route ANC.
  *
- * Key boundary: MxBluetoothManager / MxBluetoothService .checkIsMiTWS(BluetoothDevice)
+ * Verified on com.milink.service 17.2.6:
+ *   checkIsMiTWS(BluetoothDevice): Int
+ *   isMiTWS(String): Boolean
+ *   openAnc/closeAnc/openTransparent(BluetoothDevice): Int
  */
 internal class MiLinkServiceHook : HookContext() {
 
@@ -17,12 +19,10 @@ internal class MiLinkServiceHook : HookContext() {
 
     override fun install() {
         var admission = false
-        // Prefer service impl first (manager may reclassify an injected value).
         for (cls in runtimeClasses.asReversed()) {
             if (hookAdmission(cls)) { admission = true; break }
         }
         if (!admission) Log.e("MiLink: no checkIsMiTWS boundary found")
-
         runtimeClasses.forEach { cls ->
             hookIsMiTws(cls)
             hookNoiseCommand(cls, "openAnc", RcspFrame.ANC_MODE_ON)
@@ -31,48 +31,57 @@ internal class MiLinkServiceHook : HookContext() {
         }
     }
 
-    /** checkIsMiTWS(device): return true so MiLink admits our third-party earbud. */
+    /** checkIsMiTWS(BluetoothDevice): Int -> force "supported". */
     private fun hookAdmission(className: String): Boolean = runCatching {
         val m = findMethod(className, "checkIsMiTWS", BluetoothDevice::class.java)
         hookAfter(m) {
             val dev = args[0] as? BluetoothDevice ?: return@hookAfter
-            if (!isTarget(dev)) return@hookAfter
-            Log.i("admission checkIsMiTWS -> true for ${dev.name}")
-            result = true
+            if (!isTargetDevice(dev)) return@hookAfter
+            Log.i("admission checkIsMiTWS -> 1 for ${safeName(dev)}")
+            result = 1
         }
         Log.i("hooked $className.checkIsMiTWS")
         true
     }.getOrElse { Log.e("checkIsMiTWS unavailable in $className", it); false }
 
-    /** isMiTWS(device): keep reporting Mi-TWS identity for card rendering. */
+    /** isMiTWS(String address): Boolean */
     private fun hookIsMiTws(className: String) = runCatching {
-        val m = findMethod(className, "isMiTWS", BluetoothDevice::class.java)
+        val m = findMethod(className, "isMiTWS", String::class.java)
         hookAfter(m) {
-            val dev = args[0] as? BluetoothDevice ?: return@hookAfter
-            if (isTarget(dev)) result = true
+            val addr = args[0] as? String ?: return@hookAfter
+            if (!isTargetAddress(addr)) return@hookAfter
+            result = true
         }
         Log.i("hooked $className.isMiTWS")
     }.onFailure { Log.e("isMiTWS unavailable in $className", it) }
 
-    /** openAnc / closeAnc / openTransparent -> RCSP over GATT. */
+    /** openAnc / closeAnc / openTransparent(BluetoothDevice): Int */
     private fun hookNoiseCommand(className: String, methodName: String, mode: Byte) = runCatching {
         val m = findMethod(className, methodName, BluetoothDevice::class.java)
         hookBefore(m) {
             val dev = args[0] as? BluetoothDevice ?: return@hookBefore
-            if (!isTarget(dev)) return@hookBefore
-            Log.i("noise cmd $methodName -> mode=$mode")
+            if (!isTargetDevice(dev)) return@hookBefore
+            Log.i("noise cmd $methodName -> RCSP mode=$mode for ${safeName(dev)}")
             HeadsetBus.send(dev, mode)
-            result = true      // 1 = HEADSET_OPERATION_SUCCESS
+            result = 0
         }
         Log.i("hooked $className.$methodName")
     }.onFailure { Log.e("$methodName unavailable in $className", it) }
 
-    private fun isTarget(dev: BluetoothDevice): Boolean {
+    private fun safeName(dev: BluetoothDevice): String =
+        runCatching { dev.name ?: dev.address }.getOrDefault("?")
+
+    private fun isTargetDevice(dev: BluetoothDevice): Boolean {
         val name = runCatching { dev.name ?: "" }.getOrDefault("")
-        return name.startsWith(MATCH_PREFIX, ignoreCase = true)
+        if (name.startsWith(MATCH_PREFIX, ignoreCase = true)) return true
+        return isTargetAddress(runCatching { dev.address }.getOrDefault(""))
     }
+
+    private fun isTargetAddress(addr: String): Boolean =
+        TARGET_ADDRESSES.any { it.equals(addr, ignoreCase = true) }
 
     private companion object {
         const val MATCH_PREFIX = "YINPAGE"
+        val TARGET_ADDRESSES = setOf("DC:36:77:B4:A7:69")
     }
 }
