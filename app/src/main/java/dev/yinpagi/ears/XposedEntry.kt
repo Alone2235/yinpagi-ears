@@ -15,14 +15,18 @@ class XposedEntry : IXposedHookLoadPackage {
     }
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
+        Log.i("handleLoadPackage: ${lpparam.packageName} process=${lpparam.processName}")
         if (lpparam.packageName != "com.xiaomi.bluetooth") return
+        Log.i("target matched, installing hooks")
         spoofHeadsetMetadata(lpparam.classLoader)
         hookNoiseControl(lpparam.classLoader)
+        Log.i("hooks installed")
     }
 
     private fun spoofHeadsetMetadata(cl: ClassLoader) {
         val devCls = try { findClass("android.bluetooth.BluetoothDevice", cl) }
-        catch (_: Throwable) { return }
+        catch (t: Throwable) { Log.e("BluetoothDevice class not found", t); return }
+        Log.i("BluetoothDevice found, hooking getMetadata")
         XposedBridge.hookAllMethods(devCls, "getMetadata", object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 val name = runCatching {
@@ -30,6 +34,7 @@ class XposedEntry : IXposedHookLoadPackage {
                 }.getOrDefault("")
                 if (!name.startsWith(MATCH_NAME_PREFIX, ignoreCase = true)) return
                 val map = (param.result as? MutableMap<String, ByteArray>) ?: return
+                Log.i("getMetadata hit for $name, injecting xiaomi metadata")
                 map["is_untethered_headset"] = byteArrayOf(0x01)
                 map["device_type"] = byteArrayOf(0x00, 0x01)
                 map["vendor_id"] = ByteUtils.toBytes(XIAOMI_VENDOR_ID)
@@ -48,6 +53,7 @@ class XposedEntry : IXposedHookLoadPackage {
         ).forEach { cn ->
             try {
                 val svc = findClass(cn, cl)
+                Log.i("found class $cn, hooking setAncLevel")
                 XposedBridge.hookAllMethods(svc, "setAncLevel", object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val dev = param.args.firstOrNull() as? BluetoothDevice ?: return
@@ -64,7 +70,9 @@ class XposedEntry : IXposedHookLoadPackage {
                         param.result = true
                     }
                 })
-            } catch (_: Throwable) { }
+            } catch (t: Throwable) {
+                Log.e("hook failed for $cn", t)
+            }
         }
     }
 }
