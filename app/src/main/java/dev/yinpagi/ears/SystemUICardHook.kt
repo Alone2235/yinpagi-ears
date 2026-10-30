@@ -11,7 +11,7 @@ package dev.yinpagi.ears
  * DeviceInfo fields (verified on MIUI 17.2.6):
  *   id, mac, title, subtitle, deviceType, battery, icon, state, ...
  *
- * We rewrite title / battery / deviceType for our earbud right after the
+ * We rewrite title / battery for our earbud right after the
  * wrapper is constructed, which is the last point before the card renders.
  */
 internal class SystemUICardHook : HookContext() {
@@ -39,6 +39,12 @@ internal class SystemUICardHook : HookContext() {
     }
 
     private fun patch(wrapper: Any) {
+        // Never let a card patch crash SystemUI.
+        runCatching { patchInner(wrapper) }
+            .onFailure { Log.e("card patch failed (ignored)", it) }
+    }
+
+    private fun patchInner(wrapper: Any) {
         val info = runCatching {
             wrapper.javaClass.getField("deviceInfo").get(wrapper)
         }.getOrNull() ?: return
@@ -53,13 +59,14 @@ internal class SystemUICardHook : HookContext() {
 
         Log.i("card patch: title='$title' mac=$mac id=$id")
 
-        // 1. Title -> real product name.
+        // 1. Title -> real product name (pure display, safe).
         writeString(info, "title", Targets.DISPLAY_NAME)
 
-        // 2. deviceType -> Xiaomi headset so the card upgrades to full layout.
-        writeString(info, "deviceType", "wireless_headset")
+        // NOTE: never touch deviceType here. Changing third_headset to another
+        // category makes downstream card controllers resolve resources that do
+        // not exist for this device, which crashes SystemUI (the safe-mode cause).
 
-        // 3. Battery -> real values (BatteryInfo is a separate object).
+        // 2. Battery -> fill real values if the object already exists.
         runCatching {
             val battery = info.javaClass.getField("battery").get(info) ?: return@runCatching
             val lvl = BatteryFactory.forAddress(mac)
