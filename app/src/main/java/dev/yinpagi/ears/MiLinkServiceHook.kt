@@ -31,6 +31,14 @@ internal class MiLinkServiceHook : HookContext() {
             packageName = this@MiLinkServiceHook.packageName
         }.install() }.onFailure { Log.e("HeadsetRuntimeHook install failed", it) }
 
+        // HeadsetInfo supplies the values the card actually renders (name,
+        // battery cells, ANC mode). Without it the card keeps Xiaomi defaults.
+        runCatching { HeadsetInfoHook().apply {
+            module = this@MiLinkServiceHook.module
+            appClassLoader = this@MiLinkServiceHook.appClassLoader
+            packageName = this@MiLinkServiceHook.packageName
+        }.install() }.onFailure { Log.e("HeadsetInfoHook install failed", it) }
+
         runtimeClasses.forEach { cls ->
             hookIsMiTws(cls)
             hookNoiseCommand(cls, "openAnc", RcspFrame.ANC_MODE_ON)
