@@ -11,9 +11,6 @@ object HeadsetBus {
 
     fun open(device: BluetoothDevice) {
         val context = appContext ?: runCatching {
-            android.app.ActivityThread::class.java
-                .getMethod("currentApplication").invoke(null) as? Context
-        }.getOrNull() ?: runCatching {
             Class.forName("android.app.ActivityThread")
                 .getMethod("currentApplication").invoke(null) as? Context
         }.getOrNull()
