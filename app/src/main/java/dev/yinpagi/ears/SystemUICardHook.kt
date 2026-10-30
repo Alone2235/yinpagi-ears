@@ -28,8 +28,8 @@ internal class SystemUICardHook : HookContext() {
         cls.declaredConstructors.forEach { ctor ->
             ctor.isAccessible = true
             runCatching {
-                hookAfter(ctor) {
-                    val wrapper = instance ?: return@hookAfter
+                hookAfterCtor(ctor) {
+                    val wrapper = instance ?: return@hookAfterCtor
                     patch(wrapper)
                 }
                 hooked++
