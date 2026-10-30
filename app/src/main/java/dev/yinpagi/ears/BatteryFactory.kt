@@ -25,6 +25,10 @@ object BatteryFactory {
         listOf(left, right, caseLevel, 0, 0, 0)
 
     fun unknown(): List<Int> = listOf(UNKNOWN, UNKNOWN, UNKNOWN, 0, 0, 0)
+
+    /** Same six-cell layout, keyed by address (used from HeadsetInfo). */
+    fun forAddress(@Suppress("UNUSED_PARAMETER") address: String): List<Int> =
+        listOf(left, right, caseLevel, 0, 0, 0)
 }
 
 /** Tracks the current RCSP noise mode per device address. */
