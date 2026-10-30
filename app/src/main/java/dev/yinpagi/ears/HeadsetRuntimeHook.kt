@@ -84,6 +84,7 @@ internal class HeadsetRuntimeHook : HookContext() {
 
 /** Matching helpers shared by all hooks. */
 internal object Targets {
+    const val DISPLAY_NAME = "YINPAGE Real 1 Pro"
     private const val PREFIX = "YINPAGE"
     private val ADDRESSES = setOf("DC:36:77:B4:A7:69")
 
