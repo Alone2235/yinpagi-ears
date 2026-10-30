@@ -46,6 +46,13 @@ internal class MiLinkServiceHook : HookContext() {
             packageName = this@MiLinkServiceHook.packageName
         }.install() }.onFailure { Log.e("HeadsetDetailHook install failed", it) }
 
+        // HeadsetServiceController decides MMA(Xiaomi) vs third-party rendering.
+        runCatching { HeadsetServiceControllerHook().apply {
+            module = this@MiLinkServiceHook.module
+            appClassLoader = this@MiLinkServiceHook.appClassLoader
+            packageName = this@MiLinkServiceHook.packageName
+        }.install() }.onFailure { Log.e("HeadsetServiceControllerHook failed", it) }
+
         runtimeClasses.forEach { cls ->
             hookIsMiTws(cls)
             hookNoiseCommand(cls, "openAnc", RcspFrame.ANC_MODE_ON)
