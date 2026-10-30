@@ -32,6 +32,14 @@ abstract class HookContext {
         }
     }
 
+    /** Same as [hookAfter] but for constructors (libxposed accepts Executable). */
+    fun hookAfterCtor(ctor: java.lang.reflect.Constructor<*>, block: HookParam.() -> Unit) {
+        module.hook(ctor).intercept { chain ->
+            val original = chain.proceed()
+            HookParam(chain, original).apply(block).result
+        }
+    }
+
     /** Run [block] after original; block may replace [HookParam.result]. */
     fun hookAfter(method: Method, block: HookParam.() -> Unit) {
         module.hook(method).intercept { chain ->
