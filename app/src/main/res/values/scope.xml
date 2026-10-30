@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Recommended LSPosed scope: these three processes implement headset card + ANC -->
+    <string-array name="xposed_scope">
+        <item>com.android.bluetooth</item>
+        <item>com.xiaomi.bluetooth</item>
+        <item>com.milink.service</item>
+    </string-array>
+</resources>
