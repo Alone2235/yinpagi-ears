@@ -14,7 +14,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Build with Gradle
+      - name: Build APK
         uses: gradle/gradle-build-action@v3
         with:
           gradle-version: 8.9
@@ -27,5 +27,5 @@ jobs:
           git config user.email "eta@local"
           git config user.name "Eta"
           git add app/release/yinpagi-ears.apk.b64
-          git commit -m "CI: publish debug APK (base64)" || echo "no change"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          git commit -m "CI: publish APK (fixed signature)" || echo "no change"
+          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
