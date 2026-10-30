@@ -14,8 +14,27 @@ android {
         versionCode = 3
         versionName = "0.3.0"
     }
+
+    signingConfigs {
+        create("fixed") {
+            storeFile = file("../keystore/yinpagi.jks")
+            storePassword = "yinpagi123456"
+            keyAlias = "yinpagi"
+            keyPassword = "yinpagi123456"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
-        release { isMinifyEnabled = false }
+        debug {
+            signingConfig = signingConfigs.getByName("fixed")
+        }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("fixed")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
