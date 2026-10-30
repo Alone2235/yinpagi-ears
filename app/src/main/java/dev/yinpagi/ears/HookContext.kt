@@ -58,10 +58,11 @@ class HookParam(chain: XposedInterface.Chain, initialResult: Any?) {
 fun getObjectField(instance: Any?, fieldName: String): Any? {
     var type: Class<*>? = instance?.javaClass
     while (type != null) {
+        val cur = type
         runCatching {
-            return type.getDeclaredField(fieldName).apply { isAccessible = true }.get(instance)
+            return cur.getDeclaredField(fieldName).apply { isAccessible = true }.get(instance)
         }
-        type = type.superclass
+        type = cur.superclass
     }
     throw NoSuchFieldException(fieldName)
 }
