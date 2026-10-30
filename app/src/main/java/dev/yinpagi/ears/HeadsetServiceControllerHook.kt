@@ -32,6 +32,25 @@ internal class HeadsetServiceControllerHook : HookContext() {
         }
         hookIsMmaHeadset()
         hookGetHeadsetProperty()
+        // Real method names discovered from diagnostics: isMmaHeadset / getMiHeadsetName
+        hookAny("isMmaHeadset", 2) {
+            val addr = addressFrom(it.args.getOrNull(0)) ?: return@hookAny null
+            if (!Targets.isTargetAddress(addr)) return@hookAny null
+            Log.i("isMmaHeadset -> true for $addr")
+            true
+        }
+        hookAny("getMiHeadsetName", 1) {
+            val addr = addressFrom(it.args.getOrNull(0)) ?: return@hookAny null
+            if (!Targets.isTargetAddress(addr)) return@hookAny null
+            Log.i("getMiHeadsetName -> ${Targets.DISPLAY_NAME}")
+            Targets.DISPLAY_NAME
+        }
+        hookAny("refreshHeadsetProperty", 1) {
+            val addr = addressFrom(it.args.getOrNull(0)) ?: return@hookAny null
+            if (!Targets.isTargetAddress(addr)) return@hookAny null
+            Log.i("refreshHeadsetProperty for $addr")
+            null   // let original run
+        }
         Log.i("HeadsetServiceControllerHook.install done")
     }
 
@@ -87,6 +106,30 @@ internal class HeadsetServiceControllerHook : HookContext() {
         runCatching { c.getField("mode").setInt(info, NoiseState.currentMode(addr)) }
         runCatching { c.getField("mac").set(info, addr) }
     }
+
+    /**
+     * Hook a method by name + param count; [block] receives the hook param and
+     * returns the replacement result, or null to keep the original value.
+     */
+    private fun hookAny(
+        methodName: String,
+        paramCount: Int,
+        block: (HookParam) -> Any?,
+    ) = runCatching {
+        val found = findClass(cls).declaredMethods.firstOrNull {
+            it.name == methodName && it.parameterCount == paramCount
+        }
+        if (found == null) {
+            Log.e("$methodName($paramCount) missing")
+            return@runCatching
+        }
+        found.isAccessible = true
+        Log.i("hooking $methodName params=${found.parameterTypes.map { p -> p.name }}")
+        hookAfter(found) {
+            block(this)?.let { result = it }
+        }
+        Log.i("hooked $cls.$methodName")
+    }.onFailure { Log.e("$methodName hook failed", it) }
 
     /** CirculateDeviceInfo exposes the MAC under some field name. */
     private fun addressFrom(obj: Any?): String? {
