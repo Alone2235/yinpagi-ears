@@ -6,6 +6,7 @@
         android:hasCode="true">
         <meta-data android:name="xposedmodule" android:value="true"/>
         <meta-data android:name="xposeddescription" android:value="Integrate YINPAGE / Jieli earbuds into HyperOS headset dashboard (ANC / transparency / off)"/>
-        <meta-data android:name="xposedminversion" android:value="93"/>
+        <meta-data android:name="xposedminversion" android:value="101"/>
+        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope"/>
     </application>
 </manifest>
