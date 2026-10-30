@@ -11,6 +11,9 @@ object HeadsetBus {
 
     fun open(device: BluetoothDevice) {
         val context = appContext ?: runCatching {
+            android.app.ActivityThread::class.java
+                .getMethod("currentApplication").invoke(null) as? Context
+        }.getOrNull() ?: runCatching {
             Class.forName("android.app.ActivityThread")
                 .getMethod("currentApplication").invoke(null) as? Context
         }.getOrNull()
@@ -29,6 +32,15 @@ object HeadsetBus {
     fun send(device: BluetoothDevice, mode: Byte) {
         val ch = channels[device.address]
         if (ch != null) { ch.setNoiseMode(mode); Log.i("sent noise mode=$mode"); return }
+        // No channel in this process: open one now (milink and bluetooth are
+        // different processes, each needs its own GATT client).
+        open(device)
+        val fresh = channels[device.address]
+        if (fresh != null) {
+            fresh.setNoiseMode(mode)
+            Log.i("opened channel on demand, sent mode=$mode")
+            return
+        }
         runCatching {
             appContext?.sendBroadcast(android.content.Intent(ACTION_SET_NOISE).apply {
                 setPackage("com.android.bluetooth")
