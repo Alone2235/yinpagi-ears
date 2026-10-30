@@ -13,9 +13,19 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
  *   com.milink.service    -> MiLink headset card + ANC panel
  */
 class HookEntry : XposedModule() {
+    init {
+        // Write immediately on class load so we can confirm the module is instantiated.
+        runCatching {
+            java.io.File("/data/local/tmp/yinpagi_ears.log")
+                .appendText("[YinpagiEars] HookEntry <init> called, process=" +
+                    android.app.Application.getProcessName() + "\n")
+        }
+    }
+
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (!param.isFirstPackage) return
         Log.module = this
+        Log.i("onPackageLoaded first=${param.isFirstPackage} pkg=${param.packageName}")
+        if (!param.isFirstPackage) return
         val pkg = param.packageName
         Log.i("onPackageLoaded pkg=$pkg process=${Application.getProcessName()}")
 
