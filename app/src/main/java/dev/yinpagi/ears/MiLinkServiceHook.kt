@@ -23,6 +23,14 @@ internal class MiLinkServiceHook : HookContext() {
             if (hookAdmission(cls)) { admission = true; break }
         }
         if (!admission) Log.e("MiLink: no checkIsMiTWS boundary found")
+        // The card itself is driven by com.miui.headset.runtime, not by
+        // checkIsMiTWS alone. Without battery/ANC there is no card at all.
+        runCatching { HeadsetRuntimeHook().apply {
+            module = this@MiLinkServiceHook.module
+            appClassLoader = this@MiLinkServiceHook.appClassLoader
+            packageName = this@MiLinkServiceHook.packageName
+        }.install() }.onFailure { Log.e("HeadsetRuntimeHook install failed", it) }
+
         runtimeClasses.forEach { cls ->
             hookIsMiTws(cls)
             hookNoiseCommand(cls, "openAnc", RcspFrame.ANC_MODE_ON)
@@ -63,7 +71,13 @@ internal class MiLinkServiceHook : HookContext() {
             if (!isTargetDevice(dev)) return@hookBefore
             Log.i("noise cmd $methodName -> RCSP mode=$mode for ${safeName(dev)}")
             HeadsetBus.send(dev, mode)
-            result = 0
+            NoiseState.setMode(runCatching { dev.address }.getOrDefault(""),
+                when (mode) {
+                    RcspFrame.ANC_MODE_ON -> 1
+                    RcspFrame.ANC_MODE_TRANSPARENCY -> 2
+                    else -> 0
+                })
+            result = 100  // HEADSET_OPERATION_SUCCESS
         }
         Log.i("hooked $className.$methodName")
     }.onFailure { Log.e("$methodName unavailable in $className", it) }
