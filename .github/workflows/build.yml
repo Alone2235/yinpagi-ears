@@ -19,12 +19,13 @@ jobs:
         with:
           gradle-version: 8.9
           arguments: assembleDebug
-      - name: Commit APK back to repo
+      - name: Publish APK as base64 in repo
         run: |
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
           mkdir -p app/release
-          cp app/build/outputs/apk/debug/*.apk app/release/yinpagi-ears.apk
+          base64 -w0 "$APK" > app/release/yinpagi-ears.apk.b64
           git config user.email "eta@local"
           git config user.name "Eta"
-          git add app/release/yinpagi-ears.apk
-          git commit -m "CI: publish debug APK" || echo "no change"
+          git add app/release/yinpagi-ears.apk.b64
+          git commit -m "CI: publish debug APK (base64)" || echo "no change"
           git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
