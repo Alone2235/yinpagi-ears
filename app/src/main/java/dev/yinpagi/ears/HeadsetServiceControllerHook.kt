@@ -37,12 +37,16 @@ internal class HeadsetServiceControllerHook : HookContext() {
 
     /** Force MMA (Xiaomi) classification for our earbud. */
     private fun hookIsMmaHeadset() = runCatching {
-        val m = findClass(cls).declaredMethods.firstOrNull {
+        val found = findClass(cls).declaredMethods.firstOrNull {
             it.name == "clientIsMmaHeadset" && it.parameterCount == 2
-        }.also { m ->
-            m.isAccessible = true
-            Log.i("hooking clientIsMmaHeadset params=${m.parameterTypes.map { p -> p.name }}")
-        } ?: run { Log.e("clientIsMmaHeadset method missing"); return@runCatching }
+        }
+        if (found == null) {
+            Log.e("clientIsMmaHeadset method missing")
+            return@runCatching
+        }
+        found.isAccessible = true
+        Log.i("hooking clientIsMmaHeadset params=${found.parameterTypes.map { p -> p.name }}")
+        val m = found
         hookAfter(m) {
             val addr = addressFrom(args.getOrNull(0)) ?: return@hookAfter
             if (!Targets.isTargetAddress(addr)) return@hookAfter
@@ -54,11 +58,17 @@ internal class HeadsetServiceControllerHook : HookContext() {
 
     /** Fill HeadsetDeviceInfo fields (name / power / mode) for the card. */
     private fun hookGetHeadsetProperty() = runCatching {
-        val m = findClass(cls).declaredMethods.firstOrNull {
+        val found = findClass(cls).declaredMethods.firstOrNull {
             it.name == "clientGetHeadsetProperty" && it.parameterCount == 2 &&
                 it.parameterTypes[1].name == deviceInfo
-        } ?: return@runCatching
-        m.isAccessible = true
+        }
+        if (found == null) {
+            Log.e("clientGetHeadsetProperty method missing")
+            return@runCatching
+        }
+        found.isAccessible = true
+        Log.i("hooking clientGetHeadsetProperty")
+        val m = found
         hookBefore(m) {
             val addr = addressFrom(args.getOrNull(0)) ?: return@hookBefore
             if (!Targets.isTargetAddress(addr)) return@hookBefore
