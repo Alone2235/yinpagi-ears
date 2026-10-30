@@ -32,6 +32,7 @@ class HookEntry : XposedModule() {
         val hooks: List<HookContext> = when (pkg) {
             "com.android.bluetooth" -> listOf(BluetoothProcessHook())
             "com.xiaomi.bluetooth" -> listOf(XiaomiBluetoothProcessHook())
+            "com.android.systemui" -> listOf(SystemUICardHook())
             "com.milink.service" -> {
                 if (proc in MILINK_PROCESSES) listOf(MiLinkServiceHook()) else {
                     Log.i("skip milink process=$proc"); emptyList()
