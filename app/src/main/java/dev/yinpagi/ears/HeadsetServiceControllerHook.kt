@@ -18,16 +18,31 @@ internal class HeadsetServiceControllerHook : HookContext() {
     private val deviceInfo = "com.miui.circulate.api.protocol.headset.HeadsetDeviceInfo"
 
     override fun install() {
+        Log.i("HeadsetServiceControllerHook.install start")
+        val c = findClassOrNull(cls)
+        if (c == null) {
+            Log.e("$cls NOT FOUND in this process")
+            return
+        }
+        Log.i("$cls found, methods=${c.declaredMethods.size}")
+        runCatching {
+            c.declaredMethods.filter {
+                it.name.contains("Mma", true) || it.name.contains("Headset", true)
+            }.forEach { Log.i("  candidate: ${it.name}(${it.parameterTypes.joinToString { p -> p.simpleName }})") }
+        }
         hookIsMmaHeadset()
         hookGetHeadsetProperty()
+        Log.i("HeadsetServiceControllerHook.install done")
     }
 
     /** Force MMA (Xiaomi) classification for our earbud. */
     private fun hookIsMmaHeadset() = runCatching {
         val m = findClass(cls).declaredMethods.firstOrNull {
             it.name == "clientIsMmaHeadset" && it.parameterCount == 2
-        } ?: return@runCatching
-        m.isAccessible = true
+        }.also { m ->
+            m.isAccessible = true
+            Log.i("hooking clientIsMmaHeadset params=${m.parameterTypes.map { p -> p.name }}")
+        } ?: run { Log.e("clientIsMmaHeadset method missing"); return@runCatching }
         hookAfter(m) {
             val addr = addressFrom(args.getOrNull(0)) ?: return@hookAfter
             if (!Targets.isTargetAddress(addr)) return@hookAfter
