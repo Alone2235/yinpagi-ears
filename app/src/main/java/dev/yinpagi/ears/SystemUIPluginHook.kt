@@ -41,18 +41,24 @@ internal class SystemUIPluginHook : HookContext() {
             m?.isAccessible = true
             if (m != null) {
                 hookAfter(m) {
+                    val self = instance ?: return@hookAfter
                     val pkg = runCatching {
-                        callInstance(instance, "getPackageName")
-                    }.getOrElse { callInstance(instance, "getPackage") } as? String
+                        callInstance(self, "getPackageName")
+                    }.getOrElse { callInstance(self, "getPackage") } as? String
                     if (pkg != "miui.systemui.plugin") return@hookAfter
                     val loader = runCatching {
-                        val data = getObjectField(instance, "pluginData")
-                        (getObjectField(data, "context") as Context).classLoader
+                        val data = getObjectField(self, "pluginData")
+                            ?: throw IllegalStateException("pluginData null")
+                        val ctx = getObjectField(data, "context") as? Context
+                            ?: throw IllegalStateException("context null")
+                        ctx.classLoader
                     }.getOrElse {
-                        val factory = getObjectField(instance, "mPluginFactory")
-                        callOn(factory.javaClass, factory, "get") as ClassLoader
+                        val factory = getObjectField(self, "mPluginFactory")
+                            ?: throw IllegalStateException("factory null")
+                        (callOn(factory.javaClass, factory, "get")) as? ClassLoader
+                            ?: throw IllegalStateException("loader null")
                     }
-                    initialize(loader)
+                    if (loader != null) initialize(loader)
                 }
                 Log.i("loadPlugin hook installed")
             } else Log.e("PluginInstance.loadPlugin not found")
