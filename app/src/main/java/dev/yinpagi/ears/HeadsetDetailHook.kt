@@ -37,6 +37,13 @@ internal class HeadsetDetailHook : HookContext() {
             val info = args.getOrNull(2) ?: return@hookBefore
             applyOverrides(info)
         }
+
+        // Dump the real card View tree after bind, so we can see which
+        // controls actually exist in the minimal third-party layout.
+        hookAfter(bind) {
+            val root = instance as? android.view.View ?: return@hookAfter
+            root.post { dumpTree(root, 0) }
+        }
         Log.i("hooked $detailClass.${bind.name}")
     }
 
@@ -65,4 +72,20 @@ internal class HeadsetDetailHook : HookContext() {
     private fun writeString(cls: Class<*>, obj: Any, field: String, value: String) =
         runCatching { cls.getField(field).set(obj, value) }
             .onFailure { Log.e("set $field failed", it) }
+
+    /** Logs the card View tree: class name + resource id name + text. */
+    private fun dumpTree(view: android.view.View, depth: Int) {
+        if (depth > 14) return
+        val pad = "  ".repeat(depth)
+        val idName = runCatching {
+            if (view.id == android.view.View.NO_ID) "-"
+            else view.resources.getResourceEntryName(view.id)
+        }.getOrDefault("?")
+        val text = (view as? android.widget.TextView)?.text?.toString()?.take(24)
+        Log.i("VIEW $pad${view.javaClass.name} id=$idName" +
+            (if (text != null) " text=\"$text\"" else ""))
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) dumpTree(view.getChildAt(i), depth + 1)
+        }
+    }
 }
