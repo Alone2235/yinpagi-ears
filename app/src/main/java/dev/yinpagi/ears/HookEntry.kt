@@ -51,11 +51,16 @@ class HookEntry : XposedModule() {
     }
 
     private companion object {
+        // Every process that may host MxBluetoothManager. The class lives in
+        // com.milink.runtime on this ROM, so include it as well.
         val MILINK_PROCESSES = setOf(
+            "com.milink.runtime",
             "com.milink.service",
             "com.milink.service:core",
             "com.milink.service:audio",
             "com.milink.service:ui",
+            "com.milink.service:provider",
+            "com.milink.crossdeviceservice",
         )
     }
 }
