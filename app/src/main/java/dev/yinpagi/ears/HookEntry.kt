@@ -2,47 +2,47 @@ package dev.yinpagi.ears
 
 import android.app.Application
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
+import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
+import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 
 /**
- * LSPosed entry (libxposed API 102).
+ * LSPosed entry using the modern libxposed API (102).
  *
- * Scope:
- *   com.android.bluetooth -> A2DP connection detection
- *   com.xiaomi.bluetooth  -> HyperOS headset UI host
- *   com.milink.service    -> MiLink headset card + ANC panel
+ * Declared via META-INF/xposed/java_init.list (not assets/xposed_init).
+ * Recommended scope lives in META-INF/xposed/scope.list.
  */
 class HookEntry : XposedModule() {
-    init {
-        // Write immediately on class load so we can confirm the module is instantiated.
-        runCatching {
-            java.io.File("/data/local/tmp/yinpagi_ears.log")
-                .appendText("[YinpagiEars] HookEntry <init> called, process=" +
-                    android.app.Application.getProcessName() + "\n")
-        }
+
+    override fun onModuleLoaded(param: ModuleLoadedParam) {
+        Log.module = this
+        Log.i("onModuleLoaded process=${param.processName} api=$apiVersion")
     }
 
-    override fun onPackageLoaded(param: PackageLoadedParam) {
+    override fun onPackageReady(param: PackageReadyParam) {
         Log.module = this
-        Log.i("onPackageLoaded first=${param.isFirstPackage} pkg=${param.packageName}")
-        if (!param.isFirstPackage) return
         val pkg = param.packageName
-        Log.i("onPackageLoaded pkg=$pkg process=${Application.getProcessName()}")
+        val proc = runCatching { Application.getProcessName() }.getOrDefault("?")
+        Log.i("onPackageReady pkg=$pkg process=$proc first=${param.isFirstPackage}")
 
+        if (!param.isFirstPackage) return
+        installFor(pkg, proc, param.classLoader)
+    }
+
+    private fun installFor(pkg: String, proc: String, cl: ClassLoader) {
         val hooks: List<HookContext> = when (pkg) {
             "com.android.bluetooth" -> listOf(BluetoothProcessHook())
             "com.xiaomi.bluetooth" -> listOf(XiaomiBluetoothProcessHook())
             "com.milink.service" -> {
-                val proc = Application.getProcessName()
                 if (proc in MILINK_PROCESSES) listOf(MiLinkServiceHook()) else {
                     Log.i("skip milink process=$proc"); emptyList()
                 }
             }
             else -> emptyList()
         }
+        if (hooks.isEmpty()) return
         hooks.forEach { hook ->
             hook.module = this
-            hook.appClassLoader = param.defaultClassLoader
+            hook.appClassLoader = cl
             hook.packageName = pkg
             runCatching { hook.install() }
                 .onSuccess { Log.i("installed ${hook.javaClass.simpleName} in $pkg") }
