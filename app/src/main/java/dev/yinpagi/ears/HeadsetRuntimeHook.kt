@@ -98,4 +98,28 @@ internal object Targets {
 
     fun name(dev: BluetoothDevice): String =
         runCatching { dev.name ?: dev.address }.getOrDefault("?")
+
+    // --- HeadsetInfo helpers (reflection, no compile-time dep) ---
+
+    /** Reads HeadsetInfo.getAddress() reflectively. */
+    fun addressOf(info: Any): String = runCatching {
+        info.javaClass.getMethod("getAddress").invoke(info) as? String ?: ""
+    }.getOrDefault("")
+
+    /** Reads HeadsetInfo.getName() reflectively. */
+    fun nameOf(info: Any): String = runCatching {
+        info.javaClass.getMethod("getName").invoke(info) as? String ?: ""
+    }.getOrDefault("")
+
+    /** True when this HeadsetInfo belongs to our earbud. */
+    fun isTargetInfo(info: Any): Boolean {
+        if (isTargetAddress(addressOf(info))) return true
+        return nameOf(info).startsWith(PREFIX, ignoreCase = true)
+    }
+
+    /** Display name shown in the card header. */
+    fun displayName(info: Any): String {
+        val n = nameOf(info)
+        return if (n.isNotEmpty() && n.startsWith(PREFIX, ignoreCase = true)) n else PREFIX + " Real 1 Pro"
+    }
 }
